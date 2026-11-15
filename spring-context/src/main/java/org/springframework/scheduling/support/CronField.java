@@ -253,7 +253,10 @@ abstract class CronField {
 			ValueRange range = temporal.range(this.field);
 			if (current < goal) {
 				if (range.isValidIntValue(goal)) {
-					return cast(temporal.with(this.field, goal));
+					if (this.field.isTimeBased() && this != HOUR) {
+						return this.field.getBaseUnit().addTo(temporal, goal - current);
+					}
+					return cast(reset(temporal).with(this.field, goal));
 				}
 				else {
 					// goal is invalid, eg. 29th Feb, so roll forward
@@ -268,18 +271,24 @@ abstract class CronField {
 		}
 
 		/**
-		 * Roll forward the give temporal until it reaches the next higher
-		 * order field. Calling this method is equivalent to calling
-		 * {@link #elapseUntil(Temporal, int)} with goal set to the
-		 * minimum value of this field's range.
+		 * Roll forward the given temporal until it reaches the next higher
+		 * order field. Minutes and smaller fields advance on the time-line,
+		 * preserving both occurrences of an overlapping time. Hours and date
+		 * fields advance on the local calendar, resetting lower fields first
+		 * so that a later gap does not skip the beginning of the next period.
 		 * @param temporal the temporal to roll forward
 		 * @param <T> the type of temporal
 		 * @return the rolled forward temporal
 		 */
 		public <T extends Temporal & Comparable<? super T>> T rollForward(T temporal) {
-			T result = this.higherOrder.addTo(temporal, 1);
-			ValueRange range = result.range(this.field);
-			return this.field.adjustInto(result, range.getMinimum());
+			int minimum = (int) temporal.range(this.field).getMinimum();
+			if (this.field.isTimeBased() && this != HOUR) {
+				return elapseUntil(temporal, minimum);
+			}
+			T result = cast(reset(temporal).with(this.field, minimum));
+			result = this.higherOrder.addTo(result, 1);
+			// The previous period's minimum may itself have been in a gap.
+			return cast(result.with(this.field, result.range(this.field).getMinimum()));
 		}
 
 		/**

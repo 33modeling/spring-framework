@@ -1397,6 +1397,60 @@ class CronExpressionTests {
 	}
 
 	@Test
+	void hourlyAtNonHourOverlap() {
+		CronExpression expression = CronExpression.parse("0 0 * * * *");
+		ZonedDateTime last = ZonedDateTime.parse("2016-04-03T01:00:00+11:00[Australia/Lord_Howe]");
+		ZonedDateTime expected = ZonedDateTime.parse("2016-04-03T02:00:00+10:30[Australia/Lord_Howe]");
+
+		assertThat(expression.next(last)).isEqualTo(expected);
+	}
+
+	@Test
+	void quarterHourlyBeforeNonHourOverlap() {
+		CronExpression expression = CronExpression.parse("0 */15 * * * *");
+		ZonedDateTime last = ZonedDateTime.parse("2016-04-03T02:45:00+13:45[Pacific/Chatham]");
+		ZonedDateTime expected = ZonedDateTime.parse("2016-04-03T03:00:00+13:45[Pacific/Chatham]");
+
+		assertThat(expression.next(last)).isEqualTo(expected);
+	}
+
+	@Test
+	void quarterHourlyDuringNonHourOverlap() {
+		CronExpression expression = CronExpression.parse("0 */15 * * * *");
+		ZonedDateTime last = ZonedDateTime.parse("2016-04-03T03:30:00+13:45[Pacific/Chatham]");
+		ZonedDateTime expected = ZonedDateTime.parse("2016-04-03T02:45:00+12:45[Pacific/Chatham]");
+
+		assertThat(expression.next(last)).isEqualTo(expected);
+	}
+
+	@Test
+	void dailyBeforeLateEveningGap() {
+		CronExpression expression = CronExpression.parse("0 0 12 * * *");
+		ZonedDateTime last = ZonedDateTime.parse("2024-03-29T23:00:00-02:00[America/Nuuk]");
+		ZonedDateTime expected = ZonedDateTime.parse("2024-03-30T12:00:00-02:00[America/Nuuk]");
+
+		assertThat(expression.next(last)).isEqualTo(expected);
+	}
+
+	@Test
+	void dayOfMonthBeforeLateEveningGap() {
+		CronExpression expression = CronExpression.parse("0 0 12 30 * *");
+		ZonedDateTime last = ZonedDateTime.parse("2024-03-29T23:00:00-02:00[America/Nuuk]");
+		ZonedDateTime expected = ZonedDateTime.parse("2024-03-30T12:00:00-02:00[America/Nuuk]");
+
+		assertThat(expression.next(last)).isEqualTo(expected);
+	}
+
+	@Test
+	void dailyAfterMidnightGap() {
+		CronExpression expression = CronExpression.parse("0 0 0 * * *");
+		ZonedDateTime last = ZonedDateTime.parse("2025-04-25T01:00:00+03:00[Africa/Cairo]");
+		ZonedDateTime expected = ZonedDateTime.parse("2025-04-26T00:00:00+03:00[Africa/Cairo]");
+
+		assertThat(expression.next(last)).isEqualTo(expected);
+	}
+
+	@Test
 	void various() {
 		CronExpression cronExpression = CronExpression.parse("3-57 13-28 17,18 1,15 3-12 6#1");
 		LocalDateTime last = LocalDateTime.of(2022, 9, 15, 17, 44, 11);
